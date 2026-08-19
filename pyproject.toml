@@ -1,0 +1,12 @@
+[project]
+name = "var-finance1"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.11.1",
+    "numpy>=2.5.2",
+    "pandas>=3.0.5",
+    "yfinance>=1.6.0",
+]
