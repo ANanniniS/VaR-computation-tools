@@ -8,3 +8,12 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Datos descargados (se regeneran corriendo data_loader.py)
+data/*.csv
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editor
+.vscode/
