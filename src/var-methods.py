@@ -9,7 +9,18 @@ def identity(x):
     return x
 
 class financial_context:
-    def __init__(self,data_location):
+    def __init__(self,data_location: str):
+        """
+        Load historical price data and prepare the financial context
+        used by all VaR and portfolio methods.
+
+        Parameters
+        ----------
+        data_location : str
+            Path to a CSV file with a 'Date' column and one column
+            of adjusted closing prices per ticker.
+        """
+
         data = pd.read_csv(data_location) # we import the data
 
 
@@ -28,10 +39,44 @@ class financial_context:
         self._wishart_params_computed = False
 
 
-    def historical_VaR(self,portfolio,horizon=1,alpha=0.05,verbose=True,plot=True):
+    def historical_VaR(
+            self,
+            portfolio: np.ndarray,
+            horizon: int = 1,
+            alpha: float = 0.05,
+            verbose: bool = True,
+            plot: bool = True
+            ) -> float:
+        """
+        Compute the historical Value at Risk (VaR) of a portfolio.
+
+        Uses the empirical distribution of past portfolio profit and
+        loss (P&L), without assuming any parametric distribution.
+
+        Parameters
+        ----------
+        portfolio : array-like
+            Dollar amount invested in each ticker (same order as self.tickers).
+        horizon : int, default=1
+            Number of days ahead over which the VaR is computed.
+        alpha : float, default=0.05
+            Significance level (e.g. 0.05 for 95% confidence).
+        verbose : bool, default=True
+            If True, print the resulting VaR as a percentage.
+        plot : bool, default=True
+            If True, display a histogram of the P&L distribution,
+            with the loss tail beyond the VaR highlighted in red.
+
+        Returns
+        -------
+        float
+            Historical VaR, expressed as a positive fraction of capital
+            (e.g. 0.023 means a potential loss of 2.3%).
+        """
+        self._validate_historical_VaR(portfolio,horizon,alpha,verbose,plot)
+        
         x = portfolio/((self.data.iloc[0].values)*sum(portfolio))
 
-        #portfolio profit and loss
         portfolio_pnl = (x*(self.data - self.data.shift(horizon)))[horizon:].sum(axis=1)
 
         VaR_hist = -portfolio_pnl.quantile(alpha)
@@ -40,14 +85,49 @@ class financial_context:
             print(f"historical-VaR: {round(VaR_hist*100,2)}%")
         if plot:
             counts, bins, patches = plt.hist(portfolio_pnl, bins=30)
-            umbral = -VaR_hist  # var_hist es positivo, pero el percentil real es negativo
+            umbral = -VaR_hist 
             for patch, left_edge in zip(patches, bins):
                 if left_edge < umbral:
                     patch.set_facecolor("red")
             plt.show()
         return VaR_hist
 
-    def parametric_VaR(self,portfolio,horizon=1,alpha=0.05,verbose=True,plot=True):
+    def parametric_VaR(
+            self,
+            portfolio: np.ndarray,
+            horizon: int = 1,
+            alpha: float = 0.05,
+            verbose: bool = True,
+            plot: bool = True
+            ) -> float:
+        """
+        Compute the parametric (variance-covariance) Value at Risk of a portfolio.
+
+        Assumes portfolio returns follow a distribution implied by a
+        multivariate lognormal model of prices, and computes VaR
+        analytically from its mean and standard deviation.
+
+        Parameters
+        ----------
+        portfolio : array-like
+            Dollar amount invested in each ticker (same order as self.tickers).
+        horizon : int, default=1
+            Number of days ahead over which the VaR is computed.
+        alpha : float, default=0.05
+            Significance level (e.g. 0.05 for 95% confidence).
+        verbose : bool, default=True
+            If True, print the resulting VaR as a percentage.
+        plot : bool, default=True
+            If True, display the fitted normal density, with the loss
+            tail beyond the VaR highlighted in red.
+
+        Returns
+        -------
+        float
+            Parametric VaR, expressed as a positive fraction of capital.
+        """
+        self._validate_parametric_VaR(portfolio,horizon,alpha,verbose,plot)
+
 
         w = portfolio/sum(portfolio)
 
@@ -76,7 +156,46 @@ class financial_context:
 
         return VaR_para
 
-    def montecarlo_VaR(self,portfolio,horizon=1,alpha=0.05,N=100000,verbose=True,plot=True):
+    def montecarlo_VaR(
+            self,
+            portfolio: np.ndarray,
+            horizon: int = 1,
+            alpha: float = 0.05,
+            N: int = 100000,
+            verbose : bool = True,
+            plot : bool = True
+            ):
+        """
+        Compute the Value at Risk of a portfolio via Monte Carlo simulation.
+
+        Simulates N possible portfolio outcomes under the same lognormal
+        model used by parametric_VaR, and estimates VaR as the empirical
+        quantile of the simulated results. Serves as a validation of the
+        parametric method: both should converge to the same value.
+
+        Parameters
+        ----------
+        portfolio : array-like
+            Dollar amount invested in each ticker (same order as self.tickers).
+        horizon : int, default=1
+            Number of days ahead over which the VaR is computed.
+        alpha : float, default=0.05
+            Significance level (e.g. 0.05 for 95% confidence).
+        N : int, default=100000
+            Number of Monte Carlo simulations to run.
+        verbose : bool, default=True
+            If True, print the resulting VaR as a percentage.
+        plot : bool, default=True
+            If True, display a histogram of simulated outcomes, with the
+            loss tail beyond the VaR highlighted in red.
+
+        Returns
+        -------
+        float
+            Simulated VaR, expressed as a positive fraction of capital.
+        """
+        self._validate_montecarlo_VaR(portfolio,horizon,alpha,N,verbose,plot)
+
         w= portfolio/sum(portfolio)
 
         if not self._gaussian_parameters_computed:
@@ -96,7 +215,44 @@ class financial_context:
             plt.show()
         return VaR_mont
 
-    def bayesian_VaR(self,portfolio,horizon=1,alpha=0.05,N=100000,verbose=True,plot=True):
+    def bayesian_VaR(
+            self,
+            portfolio: np.ndarray,
+            horizon: int = 1,
+            alpha: float = 0.05,
+            N: int = 100000,
+            verbose : bool = True,
+            plot : bool = True
+        ):
+        """
+        Compute the Value at Risk of a portfolio under a Bayesian model.
+
+        Unlike montecarlo_VaR, this method also accounts for parameter
+        uncertainty. This produces a wider (more
+        conservative) VaR estimate when historical data is scarce.
+
+        Parameters
+        ----------
+        portfolio : array-like
+            Dollar amount invested in each ticker (same order as self.tickers).
+        horizon : int, default=1
+            Number of days ahead over which the VaR is computed.
+        alpha : float, default=0.05
+            Significance level (e.g. 0.05 for 95% confidence).
+        N : int, default=100000
+            Number of posterior samples to draw.
+        verbose : bool, default=True
+            If True, print the resulting VaR as a percentage.
+        plot : bool, default=True
+            If True, display a histogram of simulated outcomes, with the
+            loss tail beyond the VaR highlighted in red.
+
+        Returns
+        -------
+        float
+            Bayesian VaR, expressed as a positive fraction of capital.
+        """
+        self._validate_bayesian_VaR(portfolio,horizon,alpha,N,verbose,plot)
 
         w = portfolio/sum(portfolio)
 
@@ -131,7 +287,34 @@ class financial_context:
 
         return VaR_bayes
 
-    def markowitz_portfolio(self,expected_return,horizon=1):
+    def markowitz_portfolio(
+            self,
+            expected_return: float,
+            horizon: int = 1
+            ) -> np.ndarray:
+        """
+        Compute the classical Markowitz minimum-variance portfolio for a
+        given expected return, solved in closed form via Lagrange multipliers.
+
+        Uses the exact covariance of simple returns implied by the lognormal
+        price model (not the log-return covariance), so it is consistent
+        with parametric_VaR.
+
+        Parameters
+        ----------
+        expected_return : float
+            Target expected return of the portfolio over the given horizon.
+        horizon : int, default=1
+            Number of days ahead over which the optimization is performed.
+
+        Returns
+        -------
+        np.ndarray
+            Optimal portfolio weights (summing to 1). May include negative
+            weights (short positions), since no non-negativity constraint
+            is imposed.
+        """
+        self._validate_markowitz_portfolio(expected_return,horizon)
 
         horizon_mu, horizon_cov = self._lognorm_moments_horizon(horizon)
 
@@ -153,13 +336,15 @@ class financial_context:
 
         return markowitz_weights
 
-    def log_returns(self):
+    ######################### Finantial Context Computations ##############################
+
+    def _log_returns(self):
         self.l = np.log(self.data/self.data.shift(1))[1:].values
         self._log_returns_computed = True
         
     def _gaussian_parameters(self):
         if not self._log_returns_computed:
-            self.log_returns()
+            self._log_returns()
         self.mu = np.mean(self.l,axis=0)
         self.volatility = np.cov(self.l,rowvar=False,ddof=1)
         self._gaussian_parameters_computed = True
@@ -182,13 +367,86 @@ class financial_context:
 
     def _wishart_params(self):
         if not self._log_returns_computed:
-            self.log_returns()
+            self._log_returns()
         if not self._gaussian_parameters_computed:
             self._gaussian_parameters()
         self.psi = (self.l - self.mu).T@(self.l-self.mu)
         self.kappa = self.l.shape[0]
         self.nu = self.kappa -1 
         self._wishart_params_computed = True
+
+    ######################### Validation Functions ##############################
+
+    def _validate_portfolio(self,portfolio: np.ndarray) -> None:
+        """Valida el argumento portfolio."""
+        if portfolio.shape[0] != self.N_tickers:
+            raise ValueError(f"El portfolio debe tener {self.N_tickers} elementos, recibió {portfolio.shape[0]}")
+        if np.any(portfolio < 0):
+            raise ValueError("portfolio no puede tener valores negativos")
+
+    def _validate_alpha(self,alpha):
+        """Valida el argumento alpha."""
+        if not (0 < alpha < 1):
+            raise ValueError(f"alpha debe estar entre 0 y 1. Recibió {alpha}")
+
+    def _validate_horizon(self,horizon):
+        """Valida el argumento horizon."""
+        if not isinstance(horizon,int) or horizon < 1:
+            raise ValueError(f"horizon debe ser un entero positivo, recibió {horizon}")
+
+    def _validate_N(self, N):
+        """Valida el argumento N (cantidad de simulaciones Monte Carlo)."""
+        if not isinstance(N, int) or N < 1:
+            raise ValueError(f"N debe ser un entero positivo, recibió {N}")
+
+    def _validate_bool_flag(self, value, name):
+        """Valida un argumento booleano genérico (verbose, plot, etc.), dado su nombre para el mensaje de error."""
+        if not isinstance(value, bool):
+            raise ValueError(f"{name} debe ser bool, recibió {type(value)}")
+
+    def _validate_expected_return(self,expected_return):
+        if not (isinstance(expected_return,int) or isinstance(expected_return,float)):
+            raise ValueError(f"Expected return must be a float (or int), it is {type(expected_return)}")
+        if expected_return < 0:
+            raise ValueError(f"Expected return must not be a negative number. It is {expected_return}")
+
+    def _validate_historical_VaR(self, portfolio, horizon, alpha, verbose, plot):
+        """Valida los argumentos de historical_VaR."""
+        self._validate_portfolio(portfolio)
+        self._validate_horizon(horizon)
+        self._validate_alpha(alpha)
+        self._validate_bool_flag(verbose, "verbose")
+        self._validate_bool_flag(plot, "plot")
+
+    def _validate_parametric_VaR(self, portfolio, horizon, alpha, verbose, plot):
+        """Valida los argumentos de parametric_VaR."""
+        self._validate_portfolio(portfolio)
+        self._validate_horizon(horizon)
+        self._validate_alpha(alpha)
+        self._validate_bool_flag(verbose, "verbose")
+        self._validate_bool_flag(plot, "plot")
+
+    def _validate_montecarlo_VaR(self, portfolio, horizon, alpha, N, verbose, plot):
+        """Valida los argumentos de montecarlo_VaR."""
+        self._validate_portfolio(portfolio)
+        self._validate_horizon(horizon)
+        self._validate_alpha(alpha)
+        self._validate_N(N)
+        self._validate_bool_flag(verbose, "verbose")
+        self._validate_bool_flag(plot, "plot")
+
+    def _validate_bayesian_VaR(self, portfolio, horizon, alpha, N, verbose, plot):
+        """Valida los argumentos de bayesian_VaR_alt."""
+        self._validate_portfolio(portfolio)
+        self._validate_horizon(horizon)
+        self._validate_alpha(alpha)
+        self._validate_N(N)
+        self._validate_bool_flag(verbose, "verbose")
+        self._validate_bool_flag(plot, "plot")
+
+    def _validate_markowitz_portfolio(self,expected_return,horizon):
+        self._validate_expected_return(expected_return)
+        self._validate_horizon(horizon)
 
 
 if __name__ == "__main__":
