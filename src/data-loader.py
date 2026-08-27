@@ -2,7 +2,7 @@ import yfinance as yf
 
 #tickers del portafolio y periodo historico
 TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN"]
-PERIOD = "3y"
+PERIOD = "1mo"
 
 def download_prices(tickers = TICKERS,period = PERIOD):
     "Descargo los precios de cierre ajustados para cada TICKER"
