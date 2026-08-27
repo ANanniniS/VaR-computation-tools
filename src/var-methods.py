@@ -1,10 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import norm, invwishart, multivariate_normal
-from scipy.optimize import minimize
-import time
-
+from scipy.stats import norm, invwishart
 def identity(x):
     return x
 
@@ -290,7 +287,8 @@ class financial_context:
     def markowitz_portfolio(
             self,
             expected_return: float,
-            horizon: int = 1
+            horizon: int = 1,
+            verbose: bool = True
             ) -> np.ndarray:
         """
         Compute the classical Markowitz minimum-variance portfolio for a
@@ -306,6 +304,9 @@ class financial_context:
             Target expected return of the portfolio over the given horizon.
         horizon : int, default=1
             Number of days ahead over which the optimization is performed.
+        verbose : bool, default=True
+            If True, print the resulting markowitz portfolio.
+
 
         Returns
         -------
@@ -314,7 +315,7 @@ class financial_context:
             weights (short positions), since no non-negativity constraint
             is imposed.
         """
-        self._validate_markowitz_portfolio(expected_return,horizon)
+        self._validate_markowitz_portfolio(expected_return,horizon,verbose)
 
         horizon_mu, horizon_cov = self._lognorm_moments_horizon(horizon)
 
@@ -332,7 +333,8 @@ class financial_context:
 
         markowitz_weights = xi[0]*mu_hat + xi[1]*one_hat
 
-        print(np.sum(markowitz_weights),np.dot(horizon_mu,markowitz_weights))
+        if verbose:
+            print(f"Markowitz' portfolio: {markowitz_weights}")
 
         return markowitz_weights
 
@@ -486,32 +488,12 @@ class financial_context:
         self._validate_bool_flag(verbose, "verbose")
         self._validate_bool_flag(plot, "plot")
 
-    def _validate_markowitz_portfolio(self,expected_return,horizon):
+    def _validate_markowitz_portfolio(self,expected_return,horizon,verbose):
         """Validate the arguments of markowitz_portfolio."""
         self._validate_expected_return(expected_return)
         self._validate_horizon(horizon)
+        self._validate_bool_flag(verbose, "verbose")
 
 
 if __name__ == "__main__":
     fc = financial_context("data/precios.csv")
-    # --- Test 1: identity utility, sanity check against Markowitz ---
-    identity = lambda r: r**3
-    w_identity = fc.portfolio_maximization(perceived_value=identity, N=1000000)
-
-    print("Weights (identity utility):", np.round(w_identity, 3))
-    print("Sum of weights:", round(w_identity.sum(), 4))  # should be ~1.0
-
-    # --- Test 2: logarithmic utility (concave, penalizes risk) ---
-    log_utility = lambda r: np.log(1 + r)
-    w_log = fc.portfolio_maximization(perceived_value=log_utility, N=20000)
-
-    print("\nWeights (log utility):", np.round(w_log, 3))
-    print("Sum of weights:", round(w_log.sum(), 4))
-
-    # --- Test 3: compare the rating of both portfolios under the same utility ---
-    rating_identity = fc.portfolio_rating(w_identity, perceived_value=log_utility, N=50000)
-    rating_log = fc.portfolio_rating(w_log, perceived_value=log_utility, N=50000)
-
-    print(f"\nLog utility of the 'identity' portfolio: {rating_identity:.5f}")
-    print(f"Log utility of the 'log' portfolio:      {rating_log:.5f}")
-    # the portfolio optimized for log utility should beat (or tie) the other one
