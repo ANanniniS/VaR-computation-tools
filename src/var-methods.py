@@ -2,8 +2,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm, invwishart
-def identity(x):
-    return x
 
 class financial_context:
     def __init__(self,data_location: str):
