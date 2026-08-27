@@ -85,9 +85,9 @@ class financial_context:
             print(f"historical-VaR: {round(VaR_hist*100,2)}%")
         if plot:
             counts, bins, patches = plt.hist(portfolio_pnl, bins=30)
-            umbral = -VaR_hist 
+            threshold = -VaR_hist 
             for patch, left_edge in zip(patches, bins):
-                if left_edge < umbral:
+                if left_edge < threshold:
                     patch.set_facecolor("red")
             plt.show()
         return VaR_hist
@@ -208,9 +208,9 @@ class financial_context:
 
         if plot:
             counts, bins, patches = plt.hist(simulation_result, bins=30)
-            umbral = -VaR_mont  # var_hist es positivo, pero el percentil real es negativo
+            threshold = -VaR_mont  # VaR is positive, but the actual percentile is negative
             for patch, left_edge in zip(patches, bins):
-                if left_edge < umbral:
+                if left_edge < threshold:
                     patch.set_facecolor("red")
             plt.show()
         return VaR_mont
@@ -268,7 +268,7 @@ class financial_context:
 
         zs = np.random.standard_normal((N,self.N_tickers,2))
 
-        mus = horizon*self.mu + np.einsum('nij,nj->ni',L_base/np.sqrt(self.kappa),zs[:,:,0]) #valors medios
+        mus = horizon*self.mu + np.einsum('nij,nj->ni',L_base/np.sqrt(self.kappa),zs[:,:,0]) # mean values
 
         simulation_result = np.exp(mus + np.einsum("nij,nj->ni",np.sqrt(horizon)*L_base,zs[:,:,1]))@w - 1
 
@@ -279,9 +279,9 @@ class financial_context:
             print(f"bayesian-VaR: {round(VaR_bayes * 100, 2)}%")
         if plot:
             counts, bins, patches = plt.hist(simulation_result, bins=30)
-            umbral = -VaR_bayes
+            threshold = -VaR_bayes
             for patch, left_edge in zip(patches, bins):
-                if left_edge < umbral:
+                if left_edge < threshold:
                     patch.set_facecolor("red")
             plt.show()
 
@@ -339,10 +339,23 @@ class financial_context:
     ######################### Finantial Context Computations ##############################
 
     def _log_returns(self):
+        """
+        Compute the daily log returns of every ticker from the price data.
+
+        Stores the result (a matrix with one row per day and one column
+        per ticker) in self.l and marks it as computed.
+        """
         self.l = np.log(self.data/self.data.shift(1))[1:].values
         self._log_returns_computed = True
         
     def _gaussian_parameters(self):
+        """
+        Estimate the Gaussian model of the log returns.
+
+        Computes the vector of means self.mu and the covariance matrix
+        self.volatility of the daily log returns, and marks them as
+        computed.
+        """
         if not self._log_returns_computed:
             self._log_returns()
         self.mu = np.mean(self.l,axis=0)
@@ -351,6 +364,13 @@ class financial_context:
         return None
 
     def _lognorm_moments(self):
+        """
+        Compute the moments of the implied multivariate lognormal price model.
+
+        Stores the expected future price of each ticker in self.mu_ln, the
+        outer product of these expectations in self.cov_exp, and the
+        expectation of pairwise price products in self.A_ln.
+        """
         if not self._gaussian_parameters_computed:
             self._gaussian_parameters()
         self.mu_ln = np.exp(self.mu + np.diag(self.volatility)/2)
@@ -359,6 +379,20 @@ class financial_context:
         self._lognorm_moments_computed = True
 
     def _lognorm_moments_horizon(self,horizon):
+        """
+        Scale the lognormal moments from one day to a given horizon.
+
+        Parameters
+        ----------
+        horizon : int
+            Number of days ahead over which the moments are scaled.
+
+        Returns
+        -------
+        tuple of np.ndarray
+            Expected price vector and covariance matrix of prices over
+            the given horizon.
+        """
 
         if not self._lognorm_moments_computed:
             self._lognorm_moments()
@@ -366,6 +400,13 @@ class financial_context:
         return self.mu_ln**horizon, self.A_ln**horizon - self.cov_exp**horizon
 
     def _wishart_params(self):
+        """
+        Compute the Normal-Inverse-Wishart posterior parameters.
+
+        Stores the sum of squares matrix in self.psi, the effective sample
+        size in self.kappa, and the degrees of freedom in self.nu. These
+        are used by bayesian_VaR to draw posterior covariance matrices.
+        """
         if not self._log_returns_computed:
             self._log_returns()
         if not self._gaussian_parameters_computed:
@@ -378,40 +419,41 @@ class financial_context:
     ######################### Validation Functions ##############################
 
     def _validate_portfolio(self,portfolio: np.ndarray) -> None:
-        """Valida el argumento portfolio."""
+        """Validate the portfolio argument."""
         if portfolio.shape[0] != self.N_tickers:
-            raise ValueError(f"El portfolio debe tener {self.N_tickers} elementos, recibió {portfolio.shape[0]}")
+            raise ValueError(f"The portfolio must have {self.N_tickers} elements, got {portfolio.shape[0]}")
         if np.any(portfolio < 0):
-            raise ValueError("portfolio no puede tener valores negativos")
+            raise ValueError("portfolio cannot have negative values")
 
     def _validate_alpha(self,alpha):
-        """Valida el argumento alpha."""
+        """Validate the alpha argument."""
         if not (0 < alpha < 1):
-            raise ValueError(f"alpha debe estar entre 0 y 1. Recibió {alpha}")
+            raise ValueError(f"alpha must be between 0 and 1. Got {alpha}")
 
     def _validate_horizon(self,horizon):
-        """Valida el argumento horizon."""
+        """Validate the horizon argument."""
         if not isinstance(horizon,int) or horizon < 1:
-            raise ValueError(f"horizon debe ser un entero positivo, recibió {horizon}")
+            raise ValueError(f"horizon must be a positive integer, got {horizon}")
 
     def _validate_N(self, N):
-        """Valida el argumento N (cantidad de simulaciones Monte Carlo)."""
+        """Validate the N argument (number of Monte Carlo simulations)."""
         if not isinstance(N, int) or N < 1:
-            raise ValueError(f"N debe ser un entero positivo, recibió {N}")
+            raise ValueError(f"N must be a positive integer, got {N}")
 
     def _validate_bool_flag(self, value, name):
-        """Valida un argumento booleano genérico (verbose, plot, etc.), dado su nombre para el mensaje de error."""
+        """Validate a generic boolean argument (verbose, plot, etc.), given its name for the error message."""
         if not isinstance(value, bool):
-            raise ValueError(f"{name} debe ser bool, recibió {type(value)}")
+            raise ValueError(f"{name} must be bool, got {type(value)}")
 
     def _validate_expected_return(self,expected_return):
+        """Validate the expected_return argument."""
         if not (isinstance(expected_return,int) or isinstance(expected_return,float)):
             raise ValueError(f"Expected return must be a float (or int), it is {type(expected_return)}")
         if expected_return < 0:
             raise ValueError(f"Expected return must not be a negative number. It is {expected_return}")
 
     def _validate_historical_VaR(self, portfolio, horizon, alpha, verbose, plot):
-        """Valida los argumentos de historical_VaR."""
+        """Validate the arguments of historical_VaR."""
         self._validate_portfolio(portfolio)
         self._validate_horizon(horizon)
         self._validate_alpha(alpha)
@@ -419,7 +461,7 @@ class financial_context:
         self._validate_bool_flag(plot, "plot")
 
     def _validate_parametric_VaR(self, portfolio, horizon, alpha, verbose, plot):
-        """Valida los argumentos de parametric_VaR."""
+        """Validate the arguments of parametric_VaR."""
         self._validate_portfolio(portfolio)
         self._validate_horizon(horizon)
         self._validate_alpha(alpha)
@@ -427,7 +469,7 @@ class financial_context:
         self._validate_bool_flag(plot, "plot")
 
     def _validate_montecarlo_VaR(self, portfolio, horizon, alpha, N, verbose, plot):
-        """Valida los argumentos de montecarlo_VaR."""
+        """Validate the arguments of montecarlo_VaR."""
         self._validate_portfolio(portfolio)
         self._validate_horizon(horizon)
         self._validate_alpha(alpha)
@@ -436,7 +478,7 @@ class financial_context:
         self._validate_bool_flag(plot, "plot")
 
     def _validate_bayesian_VaR(self, portfolio, horizon, alpha, N, verbose, plot):
-        """Valida los argumentos de bayesian_VaR_alt."""
+        """Validate the arguments of bayesian_VaR."""
         self._validate_portfolio(portfolio)
         self._validate_horizon(horizon)
         self._validate_alpha(alpha)
@@ -445,30 +487,31 @@ class financial_context:
         self._validate_bool_flag(plot, "plot")
 
     def _validate_markowitz_portfolio(self,expected_return,horizon):
+        """Validate the arguments of markowitz_portfolio."""
         self._validate_expected_return(expected_return)
         self._validate_horizon(horizon)
 
 
 if __name__ == "__main__":
     fc = financial_context("data/precios.csv")
-    # --- Test 1: utilidad identidad, sanity check contra Markowitz ---
+    # --- Test 1: identity utility, sanity check against Markowitz ---
     identity = lambda r: r**3
     w_identity = fc.portfolio_maximization(perceived_value=identity, N=1000000)
 
-    print("Pesos (utilidad identidad):", np.round(w_identity, 3))
-    print("Suma de pesos:", round(w_identity.sum(), 4))  # debería dar ~1.0
+    print("Weights (identity utility):", np.round(w_identity, 3))
+    print("Sum of weights:", round(w_identity.sum(), 4))  # should be ~1.0
 
-    # --- Test 2: utilidad logarítmica (cóncava, penaliza riesgo) ---
+    # --- Test 2: logarithmic utility (concave, penalizes risk) ---
     log_utility = lambda r: np.log(1 + r)
     w_log = fc.portfolio_maximization(perceived_value=log_utility, N=20000)
 
-    print("\nPesos (utilidad log):", np.round(w_log, 3))
-    print("Suma de pesos:", round(w_log.sum(), 4))
+    print("\nWeights (log utility):", np.round(w_log, 3))
+    print("Sum of weights:", round(w_log.sum(), 4))
 
-    # --- Test 3: comparar el rating de ambos portafolios bajo la misma utilidad ---
+    # --- Test 3: compare the rating of both portfolios under the same utility ---
     rating_identity = fc.portfolio_rating(w_identity, perceived_value=log_utility, N=50000)
     rating_log = fc.portfolio_rating(w_log, perceived_value=log_utility, N=50000)
 
-    print(f"\nUtilidad log del portafolio 'identity': {rating_identity:.5f}")
-    print(f"Utilidad log del portafolio 'log':      {rating_log:.5f}")
-    # el portafolio optimizado para utilidad log debería ganarle (o empatar) al otro
+    print(f"\nLog utility of the 'identity' portfolio: {rating_identity:.5f}")
+    print(f"Log utility of the 'log' portfolio:      {rating_log:.5f}")
+    # the portfolio optimized for log utility should beat (or tie) the other one
