@@ -1,6 +1,6 @@
 # Portfolio VaR & Markowitz Toolkit
 
-A small library for estimating portfolio risk (Value at Risk) and finding optimal portfolio weights, computed four different ways — including an original Bayesian extension that accounts for how much you actually know about your own estimates.
+A small library for estimating portfolio risk (Value at Risk) and finding optimal portfolio weights, computed four different ways — including a Bayesian implementation that accounts for how much you actually know about your own estimates.
 
 ## The problem
 
@@ -49,11 +49,11 @@ fc.montecarlo_VaR(portfolio)
 fc.bayesian_VaR(portfolio)
 ```
 
-## The Bayesian method — an original extension
+## The Bayesian method
 
 Historical, parametric, and Monte Carlo VaR are the standard toolkit — but all three share a blind spot: they treat estimated parameters (expected return, covariance) as if they were known exactly, no matter how much or how little data supports them.
 
-The Bayesian method implemented here is **this project's own extension**, built on a Normal-Inverse-Wishart model that treats those parameters as uncertain and integrates over that uncertainty when simulating outcomes. It makes one concrete promise: it should be **more conservative when less data is available**, and converge to the other methods as data accumulates.
+The Bayesian method implemented here is **my own implementation of a classical technique**: the Normal-Inverse-Wishart posterior predictive approach, long standard in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion 1986). It treats those parameters as uncertain and integrates over that uncertainty when simulating outcomes. It makes one concrete promise: it should be **more conservative when less data is available**, and converge to the other methods as data accumulates.
 
 This isn't just a theoretical claim — [`walkthrough.ipynb`](notebooks/walkthrough.ipynb) tests it directly, recomputing all four VaR estimates using between 1 and 12 months of history. The result confirms the promise: with a single month of data, the Bayesian estimate is unambiguously the most conservative of the four; as the sample grows, the gap narrows into noise, exactly as the underlying theory predicts (see [`MATH.md`](MATH.md) for the full derivation).
 
