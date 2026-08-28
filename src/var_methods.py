@@ -494,4 +494,4 @@ class FinancialContext:
 
 
 if __name__ == "__main__":
-    fc = financial_context("data/precios.csv")
+    fc = FinancialContext("data/precios.csv")

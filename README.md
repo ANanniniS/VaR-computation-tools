@@ -12,23 +12,36 @@ But *how* you estimate VaR matters. Read it straight from historical data, and y
 
 - **Four different VaR methods** — historical, parametric, Monte Carlo, and Bayesian — cross-validated against each other on the same portfolio.
 - **A closed-form solution to the classical Markowitz problem**, using standard Lagrange multipliers rather than numerical optimization.
-- **[`math.md`](math.md)** — every formula used, derived from first assumptions to final implementation, with numbered equations cited directly from the code.
+- **[`MATH.md`](MATH.md)** — every formula used, derived from first assumptions to final implementation, with numbered equations cited directly from the code.
 - **[`notebooks/walkthrough.ipynb`](notebooks/walkthrough.ipynb)** — the same toolkit run end-to-end on real market data, with the key empirical findings interpreted in context.
+
+**How the four VaR methods compare:**
+
+| Method      | Key assumption                                | Strength                               | Weakness                                             |
+| ----------- | --------------------------------------------- | -------------------------------------- | ---------------------------------------------------- |
+| Historical  | Past P&L is representative of the future      | No distributional assumptions          | Noisy on short samples; ignores parametric structure |
+| Parametric  | Log-returns are multivariate normal           | Closed form; exact moments             | Approximates P&L as normal; point estimates only     |
+| Monte Carlo | Same log-normal model                         | True P&L shape emerges from simulation | Needs many simulations; point estimates only         |
+| Bayesian    | Same model + Normal-Inverse-Wishart posterior | Accounts for parameter uncertainty     | Heavier computation                                  |
 
 ## The five functions, one philosophy
 
-Everything in this library is exposed through five methods on a single `financial_context` class: `historical_VaR`, `parametric_VaR`, `montecarlo_VaR`, `bayesian_VaR`, and `markowitz_portfolio`. They're designed to be interchangeable — switching between methods should never require relearning an interface:
+Everything in this library is exposed through five methods on a single `FinancialContext` class: `historical_VaR`, `parametric_VaR`, `montecarlo_VaR`, `bayesian_VaR`, and `markowitz_portfolio`. They're designed to be interchangeable — switching between methods should never require relearning an interface:
 
-- **Same argument names across all methods**: `portfolio`, `horizon`, `alpha`, `verbose`, and `plot`. `N` (number of simulations) appears on the two methods that actually simulate — `montecarlo_VaR` and `bayesian_VaR` — since `historical_VaR` and `parametric_VaR` have no simulation step to control. If you know one function's signature, you know them all.
+- **Same argument names across the four VaR methods**: `portfolio`, `horizon`, `alpha`, `verbose`, and `plot`. `N` (number of simulations) appears on the two methods that actually simulate — `montecarlo_VaR` and `bayesian_VaR` — since `historical_VaR` and `parametric_VaR` have no simulation step to control. `markowitz_portfolio` is the one deliberate exception: it optimizes instead of measuring risk, so it takes `expected_return` instead of `portfolio` and `alpha`. If you know one VaR function's signature, you know them all.
 - **Same sign convention**: VaR is always returned as a positive number representing a loss, never a raw (and easy to misread) negative quantile.
 - **Same validation**: every argument is checked up front, with the same rules applied consistently, so a mistake fails loudly at the call site instead of silently three lines of matrix algebra later.
 
 ```python
 import numpy as np
-from var_methods import financial_context
+from data_loader import download_prices
+from var_methods import FinancialContext
 
-fc = financial_context("data/precios.csv")
-portfolio = np.array([25_000] * 6)  # dollar amount invested in each of 6 tickers
+# Download adjusted closing prices (tickers and period live in data_loader.py)
+download_prices().to_csv("data/precios.csv")
+
+fc = FinancialContext("data/precios.csv")
+portfolio = np.full(fc.N_tickers, 25_000)  # dollar amount invested in each ticker
 
 fc.historical_VaR(portfolio)
 fc.parametric_VaR(portfolio)
@@ -42,21 +55,21 @@ Historical, parametric, and Monte Carlo VaR are the standard toolkit — but all
 
 The Bayesian method implemented here is **this project's own extension**, built on a Normal-Inverse-Wishart model that treats those parameters as uncertain and integrates over that uncertainty when simulating outcomes. It makes one concrete promise: it should be **more conservative when less data is available**, and converge to the other methods as data accumulates.
 
-This isn't just a theoretical claim — [`walkthrough.ipynb`](notebooks/walkthrough.ipynb) tests it directly, recomputing all four VaR estimates using between 1 and 12 months of history. The result confirms the promise: with a single month of data, the Bayesian estimate is unambiguously the most conservative of the four; as the sample grows, the gap narrows into noise, exactly as the underlying theory predicts (see [`math.md`](math.md) for the full derivation).
+This isn't just a theoretical claim — [`walkthrough.ipynb`](notebooks/walkthrough.ipynb) tests it directly, recomputing all four VaR estimates using between 1 and 12 months of history. The result confirms the promise: with a single month of data, the Bayesian estimate is unambiguously the most conservative of the four; as the sample grows, the gap narrows into noise, exactly as the underlying theory predicts (see [`MATH.md`](MATH.md) for the full derivation).
 
 ## Technical highlights
 
 - **Fully vectorized, no Python-level loops.** Every simulation — including sampling thousands of covariance matrices from an Inverse-Wishart posterior — is done as batched NumPy/SciPy operations, not `for` loops over individual draws.
-- **Horizon scaling is (almost) free.** Thanks to deriving the exact horizon-scaling of every relevant distribution analytically (see `math.md`), computing VaR at `horizon=1` costs essentially the same as `horizon=100` — the simulation cost depends on the number of samples `N`, not on the horizon.
+- **Horizon scaling is (almost) free.** Thanks to deriving the exact horizon-scaling of every relevant distribution analytically (see `MATH.md`), computing VaR at `horizon=1` costs essentially the same as `horizon=100` — the simulation cost depends on the number of samples `N`, not on the horizon.
 - **Shared Cholesky decompositions.** Where a method needs two different covariance scalings from the same underlying matrix (e.g. the Bayesian method's parameter uncertainty vs. process noise), the expensive Cholesky factorization is computed once and reused, instead of repeating the most costly step of the simulation twice.
 - **Parameter caching.** Quantities that are expensive to compute but constant across calls (e.g. the fitted mean and covariance of returns) are computed once, cached on the instance, and reused across every method that needs them — so calling `historical_VaR` and then `parametric_VaR` doesn't redo the same underlying estimation twice.
 - **No caching across simulations — on purpose.** Unlike the parameter cache above, results are deliberately **not** cached or reused *between separate Monte Carlo or Bayesian calls*: each call draws an entirely fresh set of random samples. This was a conscious trade-off — reusing simulations across calls would be faster, but would introduce statistical dependence between measurements that are meant to be independent, which matters if you're comparing or averaging VaR estimates across calls.
 
-## Documentation: `math.md` and the walkthrough notebook
+## Documentation: `MATH.md` and the walkthrough notebook
 
 Two documents complement the code, each answering a different question:
 
-- **[`math.md`](math.md)** answers *why*: it lays out the price model, derives the mean and covariance behind each method from first assumptions, and numbers every equation so the code can cite it directly (e.g. `# Eq. B.3, math.md`).
+- **[`MATH.md`](MATH.md)** answers *why*: it lays out the price model, derives the mean and covariance behind each method from first assumptions, and numbers every equation so the code can cite it directly (e.g. `# Eq. B.3`).
 - **[`notebooks/walkthrough.ipynb`](notebooks/walkthrough.ipynb)** answers *what happens in practice*: it runs the full toolkit on a real portfolio, compares the four VaR methods, runs the data-sensitivity experiment described above, and solves for the Markowitz-optimal portfolio — with every result interpreted, not just printed.
 
 ## Installation & quickstart
@@ -65,7 +78,7 @@ This project uses [`uv`](https://docs.astral.sh/uv/) for dependency management.
 
 ```bash
 git clone <repo-url>
-cd portfolio-var
+cd <your-clone>
 uv sync
 ```
 
@@ -78,11 +91,14 @@ uv run jupyter lab notebooks/walkthrough.ipynb
 ### Project structure
 
 ```
-portfolio-var/
+var-finance1/
 ├── README.md
-├── math.md
+├── MATH.md
+├── main.py
 ├── pyproject.toml
-├── data/
+├── uv.lock
+├── .gitignore
+├── data/                    # CSV prices (generated by data_loader.py)
 ├── src/
 │   ├── data_loader.py
 │   └── var_methods.py
