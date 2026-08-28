@@ -1,11 +1,11 @@
 import yfinance as yf
 
-#tickers del portafolio y periodo historico
-TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN"]
-PERIOD = "1mo"
+# portfolio tickers and historical period
+TICKERS = ["YPF", "GGAL", "BMA", "PAM", "AGRO", "BIOX"]
+PERIOD = "1y"
 
 def download_prices(tickers = TICKERS,period = PERIOD):
-    "Descargo los precios de cierre ajustados para cada TICKER"
+    """Download the adjusted closing prices for each ticker."""
     data = yf.download(tickers=tickers,period=period,auto_adjust=True)["Close"]
     return data.dropna()
 

@@ -2,6 +2,7 @@
 name = "var-finance1"
 version = "0.1.0"
 description = "Portfolio Value at Risk (historical, parametric, Monte Carlo, Bayesian) and closed-form Markowitz optimization"
+license = "MIT"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

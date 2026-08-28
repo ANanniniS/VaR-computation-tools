@@ -94,7 +94,7 @@ uv run jupyter lab notebooks/walkthrough.ipynb
 var-finance1/
 ├── README.md
 ├── MATH.md
-├── main.py
+├── LICENSE
 ├── pyproject.toml
 ├── uv.lock
 ├── .gitignore
@@ -105,3 +105,7 @@ var-finance1/
 └── notebooks/
     └── walkthrough.ipynb
 ```
+
+## License
+
+[MIT](LICENSE) — © 2026 Albano Nannini.
