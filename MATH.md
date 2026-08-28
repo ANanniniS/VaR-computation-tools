@@ -1,5 +1,5 @@
 # Fundamental definitions
-We're analyzing how the price of different assets evolve. For each firm $i\in \{1,...,I\}$ we have a **prize** at each time $t$ , which we note
+We're analyzing how the prices of different assets evolve. For each firm $i\in \{1,...,I\}$ we have a **price** at each time $t$, which we denote
 $$
 P_i(t)
 $$
@@ -11,22 +11,22 @@ and its **log-return** is
 $$
 	l_i(t) = \ln r_i(t).
 $$
-If we buy a $x_i$ actions for each firm $i$, then the value of the portfolio as a function of time will be given by
+If we buy $x_i$ shares of each firm $i$, then the value of the portfolio as a function of time will be given by
 $$
 	V(t) = \sum_i P_i(t)x_i = \sum_i r_i(t)r_i(t-1)...r_i(1)w_i
 $$
-Where $w_i = x_i P_i(0)$ is the **weight of firm $i$**. As we are looking for porcentual increments we always use the weights normalized to one. Then,
+Where $w_i = x_i P_i(0)$ is the **weight of firm $i$**. As we are looking for percentage increments we always use the weights normalized to one. Then,
 $$
 	V(0) = 1
 $$
-Thus the profit or loss of our porfolio can be computed as
+Thus the profit or loss of our portfolio can be computed as
 $$
 	PnL(t,\mathbf{w}) = V(t)-1.
 $$
 
-The idea behind the Value at Risk (VaR) and Markowitz porfolio computations is to model the future quantities (as $P_i(t)$) as Random Variables (RV).
+The idea behind the Value at Risk (VaR) and Markowitz portfolio computations is to model the future quantities (as $P_i(t)$) as Random Variables (RV).
 
-We say that the VaR of $5\%$  with an **horizon** of $3$ days of a certain portfolio is $3\%$ then we are saying that "We have $95\%$ chances of losing less than a $3\%$".
+Saying that the VaR of a certain portfolio is $3\%$ at the $5\%$ significance level with a **horizon** of $3$ days means that we have $95\%$ chances of losing no more than $3\%$ of its value over those $3$ days.
 
 ## Historical VaR
 
@@ -34,7 +34,7 @@ The historical method estimates the VaR of a portfolio directly from the empiric
 
 Given a historical sample of $T$ observations of $PnL(t,\mathbf{w})$, we sort them from worst to best and estimate the $\alpha$-quantile of the empirical distribution:
 
-$$q_\alpha = \inf{x : \hat{F}(x) \geq \alpha} \tag{H.1}$$
+$$q_\alpha = \inf\{x : \hat{F}(x) \geq \alpha\} \tag{H.1}$$
 
 where $\hat{F}$ is the empirical cumulative distribution function of $PnL(t,\mathbf{w})$ built from the historical sample. In practice, this is computed directly as the $\alpha$-percentile of the sample.
 
@@ -44,10 +44,10 @@ $$VaR_\alpha^{hist} = -q_\alpha \tag{H.2}$$
 
 The minus sign follows the convention adopted throughout this document: VaR is reported as a **positive number representing a loss**, even though $q_\alpha$ itself is typically negative.
 
-**Key property**: It is often read that the historical VaR makes no assumption because it doesn't assume any particular distribution. The truth is that it's actually making the assumption that the past measurements are a representative output of the future results.
-## Parametric and Montecarlo VaR
+**Key property**: It is often claimed that the historical VaR makes no assumption because it doesn't assume any particular distribution. The truth is that it's actually making the assumption that the past measurements are a representative output of the future results.
+## Parametric and Monte Carlo VaR
 
-The following methods models the market dynamics as thinking that each
+The following methods model the market dynamics by assuming that each
 $$
 	\mathbf{l}(t) = 
 	\left[
@@ -59,11 +59,11 @@ $$
 		\end{array}
 	\right]
 $$
-is and independent RV that are taken from a multivariate normal distribution,
+is an independent RV drawn from a multivariate normal distribution,
 $$
 	\mathbf{l}(t)\sim \mathcal{N}(\mu,\Sigma)
 $$
-where $\mu$ and $\Sigma$ are its mean vector and covariance matrix.
+where $\mu$ and $\Sigma$ are the mean vector and covariance matrix.
 If we use the independence of the $\mathbf{l}$s (as the model says), we can compute,
 $$
 	\mathbf{L} = 
@@ -71,13 +71,13 @@ $$
 		\mathcal{N}(t\mu,t\Sigma).
 $$
 
-Thus, we could compute the distribution probability over the value of the portfolio,
+Thus, we can compute the probability distribution of the portfolio value,
 $$
 	V(t) = \sum \exp(L_i) w_i = \mathbf{w}^T\exp(\mathbf{L})
 $$
-where $\exp(\mathbf{L})$ means the point wise exponential. The RV $\mathbf{L}$ comes from a *log-normal distribution* and it be computed anallitically. Unfortunately, linear combinations of it cannot. So, at this point there are two usual ways of approaching this problem.
+where $\exp(\mathbf{L})$ means the pointwise exponential. The RV $\exp(\mathbf{L})$ follows a *log-normal distribution* and can be handled analytically. Unfortunately, linear combinations of its components cannot. So, at this point there are two usual ways of approaching this problem.
 
-The parameters $\mu$ and $\Sigma$ are obtained through a puntual stimation using the data.
+The parameters $\mu$ and $\Sigma$ are obtained through point estimation using the data.
 
 ### Parametric approach
 
@@ -101,11 +101,11 @@ $$\text{Var}(V(t)) = \mathbf{w}^T \, \text{Cov}(\exp(\mathbf{L})) \, \mathbf{w} 
 
 **Normal approximation and VaR.** Approximating $PnL(t,\mathbf{w}) = V(t) - 1$ as normally distributed with mean $\mu_p = E[V(t)] - 1$ and standard deviation $\sigma_p = \sqrt{\text{Var}(V(t))}$, the parametric VaR at confidence level $1-\alpha$ is obtained analytically from the normal quantile:
 
-$$VaR_\alpha^{param} = -\left(\mu_p + z_\alpha \, \sigma_p\right) \tag{P.6}$$`
+$$VaR_\alpha^{param} = -\left(\mu_p + z_\alpha \, \sigma_p\right) \tag{P.6}$$
 
 where $z_\alpha = \Phi^{-1}(\alpha)$ is the $\alpha$-quantile of the standard normal distribution.
 
-### Montecarlo approach
+### Monte Carlo approach
 
 Instead of approximating the distribution of $V(t)$ analytically, the Monte Carlo approach draws directly from the known distribution of $\mathbf{L}$ and evaluates $V(t)$ exactly on each draw, letting the true (non-normal) shape of $V(t)$ emerge empirically.
 
@@ -147,7 +147,7 @@ $$\Sigma^{(n)} \sim \mathcal{IW}(\nu,\Psi) \tag{B.3}$$
 
 $$\mu^{(n)} \mid \Sigma^{(n)} \sim \mathcal{N}\left(\hat\mu, \frac{\Sigma^{(n)}}{\kappa}\right) \tag{B.4}$$
 
-$$\mathbf{L}^{(n)} \mid \mu^{(n)}, \Sigma^{(n)} \sim \mathcal{N}\left(t,\mu^{(n)}, t,\Sigma^{(n)}\right) \tag{B.5}$$
+$$\mathbf{L}^{(n)} \mid \mu^{(n)}, \Sigma^{(n)} \sim \mathcal{N}\left(t\mu^{(n)}, t\Sigma^{(n)}\right) \tag{B.5}$$
 
 Each draw first samples a plausible covariance matrix (B.3), then a plausible mean conditional on that covariance (B.4) — capturing parameter uncertainty — and finally a plausible horizon-$t$ outcome conditional on that particular $(\mu^{(n)},\Sigma^{(n)})$ (B.5) — capturing the process' own randomness. As in the Monte Carlo approach, each simulated $\mathbf{L}^{(n)}$ is exponentiated and combined with the portfolio weights:
 
@@ -155,7 +155,7 @@ $$V^{(n)}(t) = \mathbf{w}^T\exp\left(\mathbf{L}^{(n)}\right) \tag{B.6}$$
 
 and the Bayesian VaR is the empirical quantile of the resulting simulated $PnL$, exactly as in Eq. M.3:
 
-$$VaR_\alpha^{bayes} = -q_\alpha\left({V^{(n)}(t)-1}_{n=1}^N\right) \tag{B.7}$$
+$$VaR_\alpha^{bayes} = -q_\alpha\left(\{V^{(n)}(t)-1\}_{n=1}^N\right) \tag{B.7}$$
 
 **Key property**: because $\kappa$ scales with the amount of historical data $T$, this method automatically widens the simulated distribution of outcomes — and therefore increases the estimated VaR — when little data is available, and converges to the plain Monte Carlo estimate (Eq. M.1–M.3) as $T\to\infty$, since the posterior on $(\mu,\Sigma)$ becomes arbitrarily tight. This makes the Bayesian VaR strictly more conservative than the Monte Carlo VaR under the same model, with the gap between them serving as a direct, interpretable measure of parameter uncertainty — something none of the previous methods can quantify.
 
@@ -163,10 +163,24 @@ $$VaR_\alpha^{bayes} = -q_\alpha\left({V^{(n)}(t)-1}_{n=1}^N\right) \tag{B.7}$$
 
 Section "Parametric approach" showed that, under the normal approximation, the portfolio's expected value and variance at horizon $t$ can be written explicitly as functions of the weights $\mathbf{w}$ (Eq. P.4–P.5):
 
-$$\mu_p(\mathbf{w}) = \mathbf{w}^T E[\exp(\mathbf{L})] - 1, \qquad \sigma_p^2(\mathbf{w}) = \mathbf{w}^T , \text{Cov}(\exp(\mathbf{L})) , \mathbf{w} \tag{K.1}$$
+$$\mu_p(\mathbf{w}) = \mathbf{w}^T E[\exp(\mathbf{L})] - 1, \qquad \sigma_p^2(\mathbf{w}) = \mathbf{w}^T  \text{Cov}(\exp(\mathbf{L}))  \mathbf{w} \tag{K.1}$$
 
 To lighten notation, we write $\mu_{ln} = E[\exp(\mathbf{L})]$ and $\Sigma_{ln} = \text{Cov}(\exp(\mathbf{L}))$ for the mean vector and covariance matrix already derived in Eq. P.1–P.3, so that:
 
 $$\mu_p(\mathbf{w}) = \mathbf{w}^T\mu_{ln} - 1, \qquad \sigma_p^2(\mathbf{w}) = \mathbf{w}^T\Sigma_{ln}\mathbf{w} \tag{K.2}$$
 
-Given this, a natural question follows: among all portfolios achieving a target expected return $R$, which one has the lowest possible risk (variance)? This is the classical Markowitz problem. Which can be solved by just solving linear equations.
+Given this, a natural question follows: among all portfolios achieving a target expected return $R$, which one has the lowest possible risk (variance)? This is the classical Markowitz problem. Note that $R$ is the target expected portfolio value, so the target expected PnL is $R-1$.
+
+The problem can be solved in closed form via Lagrange multipliers. Let $\lambda$ be the multiplier of the normalization constraint $\mathbf{1}^T\mathbf{w}=1$ and $\gamma$ the multiplier of the return constraint $\mu_{ln}^T\mathbf{w}=R$. The Lagrangian reads
+
+$$\mathcal{L}(\mathbf{w},\lambda,\gamma) = \frac{1}{2}\mathbf{w}^T\Sigma_{ln}\mathbf{w} + \lambda\left(1 - \mathbf{1}^T\mathbf{w}\right) + \gamma\left(R - \mu_{ln}^T\mathbf{w}\right) \tag{K.3}$$
+
+Setting its gradient with respect to $\mathbf{w}$ to zero gives
+
+$$\Sigma_{ln}\mathbf{w} = \lambda\mathbf{1} + \gamma\mu_{ln} \qquad\Longrightarrow\qquad \mathbf{w} = \lambda b + \gamma a \tag{K.4}$$
+
+with $a = \Sigma_{ln}^{-1}\mu_{ln}$ and $b = \Sigma_{ln}^{-1}\mathbf{1}$. Imposing the two constraints turns into two linear equations in $(\gamma,\lambda)$:
+
+$$\begin{pmatrix}\mathbf{1}^T a & \mathbf{1}^T b\\ \mu_{ln}^T a & \mu_{ln}^T b\end{pmatrix}\begin{pmatrix}\gamma\\ \lambda\end{pmatrix} = \begin{pmatrix}1\\ R\end{pmatrix} \tag{K.5}$$
+
+where the off-diagonal entries coincide, $\mathbf{1}^T a = \mu_{ln}^T b$, because $\Sigma_{ln}$ is symmetric. Solving (K.5) and substituting back into (K.4) yields the optimal weights. Since no non-negativity constraint is imposed, the optimal weights may be negative, i.e. the solution can include short positions.
