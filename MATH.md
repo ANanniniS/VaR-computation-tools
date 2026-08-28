@@ -159,6 +159,10 @@ $$VaR_\alpha^{bayes} = -q_\alpha\left(\{V^{(n)}(t)-1\}_{n=1}^N\right) \tag{B.7}$
 
 **Key property**: because $\kappa$ scales with the amount of historical data $T$, this method automatically widens the simulated distribution of outcomes — and therefore increases the estimated VaR — when little data is available, and converges to the plain Monte Carlo estimate (Eq. M.1–M.3) as $T\to\infty$, since the posterior on $(\mu,\Sigma)$ becomes arbitrarily tight. This makes the Bayesian VaR strictly more conservative than the Monte Carlo VaR under the same model, with the gap between them serving as a direct, interpretable measure of parameter uncertainty — something none of the previous methods can quantify.
 
+
+### My own development
+Note: while historical, parametric, and Monte Carlo VaR are standard industry methods, the Bayesian approach developed in this section is an **original** extension of this project, aimed at explicitly quantifying parameter uncertainty — something the other three methods cannot do.
+
 ## Finding the best portfolio — The Markowitz problem
 
 Section "Parametric approach" showed that, under the normal approximation, the portfolio's expected value and variance at horizon $t$ can be written explicitly as functions of the weights $\mathbf{w}$ (Eq. P.4–P.5):

@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm, invwishart
 
-class financial_context:
+class FinancialContext:
     def __init__(self,data_location: str):
         """
         Load historical price data and prepare the financial context
@@ -74,7 +74,7 @@ class financial_context:
 
         portfolio_pnl = (x*(self.data - self.data.shift(horizon)))[horizon:].sum(axis=1)
 
-        VaR_hist = -portfolio_pnl.quantile(alpha)
+        VaR_hist = -portfolio_pnl.quantile(alpha) # Eq. H.1, H.2
 
         if verbose:
             print(f"historical-VaR: {round(VaR_hist*100,2)}%")
@@ -126,14 +126,14 @@ class financial_context:
 
         w = portfolio/sum(portfolio)
 
-        horizon_mu,horizon_cov = self._lognorm_moments_horizon(horizon)
+        horizon_mu,horizon_cov = self._lognorm_moments_horizon(horizon) # Eq. P.1, P.2, P.3
 
-        mean_R = np.dot(w,horizon_mu) - 1
-        std_R = np.sqrt( np.dot(w,np.dot(horizon_cov,w))) 
+        mean_R = np.dot(w,horizon_mu) - 1 # Eq. P.4
+        std_R = np.sqrt( np.dot(w,np.dot(horizon_cov,w)))  # Eq. P.5
 
-        z = norm.ppf(alpha)
+        z = norm.ppf(alpha) # Eq. P.6
 
-        VaR_para = - (mean_R + z*std_R)
+        VaR_para = - (mean_R + z*std_R) # Eq. P.6
 
         if verbose:
             print(f"parametric-VaR: {round(VaR_para*100,2)}%")
@@ -195,8 +195,8 @@ class financial_context:
 
         if not self._gaussian_parameters_computed:
             self._gaussian_parameters()
-        simulation_result = np.exp(np.random.multivariate_normal(horizon*self.mu,horizon*self.volatility,size=N))@w-1
-        VaR_mont = -np.quantile(simulation_result,q=alpha)
+        simulation_result = np.exp(np.random.multivariate_normal(horizon*self.mu,horizon*self.volatility,size=N))@w-1 # Eq. M.1, M.2
+        VaR_mont = -np.quantile(simulation_result,q=alpha) # Eq. M.3
 
         if verbose:
             print(f"montecarlo-VaR: {round(VaR_mont * 100, 2)}%")
@@ -258,17 +258,17 @@ class financial_context:
 
 
 
-        sigmas = invwishart.rvs(df=self.nu, scale=self.psi, size=N)
+        sigmas = invwishart.rvs(df=self.nu, scale=self.psi, size=N) # Eq. B.3
         L_base = np.linalg.cholesky(sigmas)
 
         zs = np.random.standard_normal((N,self.N_tickers,2))
 
-        mus = horizon*self.mu + np.einsum('nij,nj->ni',L_base/np.sqrt(self.kappa),zs[:,:,0]) # mean values
+        mus = horizon*self.mu + np.einsum('nij,nj->ni',L_base/np.sqrt(self.kappa),zs[:,:,0]) # Eq. B.4
 
-        simulation_result = np.exp(mus + np.einsum("nij,nj->ni",np.sqrt(horizon)*L_base,zs[:,:,1]))@w - 1
+        simulation_result = np.exp(mus + np.einsum("nij,nj->ni",np.sqrt(horizon)*L_base,zs[:,:,1]))@w - 1 # Eq. B.5, B.6
 
 
-        VaR_bayes = -np.quantile(simulation_result, q=alpha)
+        VaR_bayes = -np.quantile(simulation_result, q=alpha) # Eq. B.7
 
         if verbose:
             print(f"bayesian-VaR: {round(VaR_bayes * 100, 2)}%")
@@ -315,10 +315,10 @@ class financial_context:
         """
         self._validate_markowitz_portfolio(expected_return,horizon,verbose)
 
-        horizon_mu, horizon_cov = self._lognorm_moments_horizon(horizon)
+        horizon_mu, horizon_cov = self._lognorm_moments_horizon(horizon) # Eq. K.1, K.2
 
         rhs = np.column_stack([horizon_mu, np.ones_like(horizon_mu)])
-        sol = np.linalg.solve(horizon_cov, rhs)
+        sol = np.linalg.solve(horizon_cov, rhs) # Eq. K.4
 
         mu_hat = sol[:, 0]
         one_hat = sol[:, 1]
@@ -327,9 +327,9 @@ class financial_context:
             np.array([[np.sum(mu_hat),np.sum(one_hat)],
                       [np.dot(mu_hat,horizon_mu),np.dot(one_hat,horizon_mu)]]),
             np.array([1,expected_return])
-        )
+        ) # Eq. K.5
 
-        markowitz_weights = xi[0]*mu_hat + xi[1]*one_hat
+        markowitz_weights = xi[0]*mu_hat + xi[1]*one_hat # Eq. K.4
 
         if verbose:
             print(f"Markowitz' portfolio: {markowitz_weights}")
@@ -373,9 +373,9 @@ class financial_context:
         """
         if not self._gaussian_parameters_computed:
             self._gaussian_parameters()
-        self.mu_ln = np.exp(self.mu + np.diag(self.volatility)/2)
-        self.cov_exp = np.outer(self.mu_ln,self.mu_ln)
-        self.A_ln = np.exp(self.volatility)*self.cov_exp
+        self.mu_ln = np.exp(self.mu + np.diag(self.volatility)/2) # Eq. P.1
+        self.cov_exp = np.outer(self.mu_ln,self.mu_ln) # Eq. P.3
+        self.A_ln = np.exp(self.volatility)*self.cov_exp # Eq. P.2
         self._lognorm_moments_computed = True
 
     def _lognorm_moments_horizon(self,horizon):
@@ -397,7 +397,7 @@ class financial_context:
         if not self._lognorm_moments_computed:
             self._lognorm_moments()
 
-        return self.mu_ln**horizon, self.A_ln**horizon - self.cov_exp**horizon
+        return self.mu_ln**horizon, self.A_ln**horizon - self.cov_exp**horizon # Eq. P.1, P.2, P.3
 
     def _wishart_params(self):
         """
@@ -411,9 +411,9 @@ class financial_context:
             self._log_returns()
         if not self._gaussian_parameters_computed:
             self._gaussian_parameters()
-        self.psi = (self.l - self.mu).T@(self.l-self.mu)
-        self.kappa = self.l.shape[0]
-        self.nu = self.kappa -1 
+        self.psi = (self.l - self.mu).T@(self.l-self.mu) # Eq. B.2
+        self.kappa = self.l.shape[0] # Eq. B.2
+        self.nu = self.kappa -1  # Eq. B.2
         self._wishart_params_computed = True
 
     ######################### Validation Functions ##############################
