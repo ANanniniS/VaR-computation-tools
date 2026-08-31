@@ -72,8 +72,9 @@ class FinancialContext:
         
         x = portfolio/((self.data.iloc[0].values)*sum(portfolio))
 
-        portfolio_pnl = (x*(self.data - self.data.shift(horizon)))[horizon:].sum(axis=1)
+        V = (self.data*x).sum(axis=1)
 
+        portfolio_pnl = (V/V.shift(horizon)-1)[horizon:]
         VaR_hist = -portfolio_pnl.quantile(alpha) # Eq. H.1, H.2
 
         if verbose:
