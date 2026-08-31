@@ -4,19 +4,31 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm, invwishart
 
 class FinancialContext:
-    def __init__(self,data_location: str):
+    def __init__(
+        self,
+        data_location: str | None = None,
+        data: pd.DataFrame | None = None
+        ):
         """
         Load historical price data and prepare the financial context
         used by all VaR and portfolio methods.
 
+        Exactly one of `data_location` or `data` must be provided.
+
         Parameters
         ----------
-        data_location : str
+        data_location : str, optional
             Path to a CSV file with a 'Date' column and one column
             of adjusted closing prices per ticker.
+        data : pd.DataFrame, optional
+            Price data already in memory. Dates may be either a 'Date'
+            column or the index. Useful for rolling-window backtesting,
+            where writing one CSV per window would be wasteful.
         """
+        self._validate_init(data_location, data)
 
-        data = pd.read_csv(data_location) # we import the data
+        if not (data_location is None):
+            data = pd.read_csv(data_location) # we import the data
 
 
         self.dates = data["Date"] #we save the dates
@@ -418,6 +430,26 @@ class FinancialContext:
         self._wishart_params_computed = True
 
     ######################### Validation Functions ##############################
+
+    def _validate_init(self, data_location, data):
+        """Validate the arguments of __init__."""
+        if (data_location is None) == (data is None):
+            raise ValueError(
+                "Exactly one of `data_location` or `data` must be provided."
+            )
+        if data_location is not None and not isinstance(data_location, str):
+            raise ValueError(
+                f"data_location must be a str, got {type(data_location)}"
+            )
+        if data is not None:
+            if not isinstance(data, pd.DataFrame):
+                raise ValueError(
+                    f"data must be a pandas DataFrame, got {type(data)}"
+                )
+            if "Date" not in data.columns:
+                raise ValueError("data must have a 'Date' column")
+            if data.shape[1] < 2:
+                raise ValueError("data must have at least one price column besides 'Date'")
 
     def _validate_portfolio(self,portfolio: np.ndarray) -> None:
         """Validate the portfolio argument."""
