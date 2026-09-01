@@ -280,9 +280,9 @@ class FinancialContext:
 
         zs = np.random.standard_normal((N,self.N_tickers,2))
 
-        mus = horizon*self.mu + np.einsum('nij,nj->ni',L_base/np.sqrt(self.kappa),zs[:,:,0]) # Eq. B.4
+        mus = self.mu + np.einsum('nij,nj->ni',L_base/np.sqrt(self.kappa),zs[:,:,0]) # Eq. B.4
 
-        simulation_result = np.exp(mus + np.einsum("nij,nj->ni",np.sqrt(horizon)*L_base,zs[:,:,1]))@w - 1 # Eq. B.5, B.6
+        simulation_result = np.exp(horizon*mus + np.einsum("nij,nj->ni",np.sqrt(horizon)*L_base,zs[:,:,1]))@w - 1 # Eq. B.5, B.6
 
 
         VaR_bayes = -np.quantile(simulation_result, q=alpha) # Eq. B.7
