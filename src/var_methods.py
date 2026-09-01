@@ -82,11 +82,9 @@ class FinancialContext:
         """
         self._validate_historical_VaR(portfolio,horizon,alpha,verbose,plot)
         
-        x = portfolio/((self.data.iloc[0].values)*sum(portfolio))
+        portfolio = portfolio/np.sum(portfolio)
 
-        V = (self.data*x).sum(axis=1)
-
-        portfolio_pnl = (V/V.shift(horizon)-1)[horizon:]
+        portfolio_pnl = (self.data*portfolio/self.data.shift(horizon)).sum(axis=1)[horizon:] - 1
         VaR_hist = -portfolio_pnl.quantile(alpha) # Eq. H.1, H.2
 
         if verbose:
