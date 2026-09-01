@@ -1,6 +1,6 @@
 # Portfolio VaR & Markowitz Toolkit
 
-A small library for estimating portfolio risk (Value at Risk) and finding optimal portfolio weights, computed four different ways — including a Bayesian implementation that accounts for how much you actually know about your own estimates.
+A small library for estimating portfolio risk (Value at Risk) and finding optimal portfolio weights, computed four different ways — including a more advanced Bayesian method, well established in the literature, that accounts for how much you actually know about your own estimates.
 
 ## The problem
 
@@ -51,9 +51,9 @@ fc.bayesian_VaR(portfolio)
 
 ## The Bayesian method
 
-Historical, parametric, and Monte Carlo VaR are the standard toolkit — but all three share a blind spot: they treat estimated parameters (expected return, covariance) as if they were known exactly, no matter how much or how little data supports them.
+Historical, parametric, and Monte Carlo VaR are the standard toolkit — but all three share a well-known blind spot: they treat estimated parameters (expected return, covariance) as if they were known exactly, no matter how much or how little data supports them.
 
-The Bayesian method implemented here is **my own implementation of a classical technique**: the Normal-Inverse-Wishart posterior predictive approach, long standard in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion 1986). It treats those parameters as uncertain and integrates over that uncertainty when simulating outcomes. It makes one concrete promise: it should be **more conservative when less data is available**, and converge to the other methods as data accumulates.
+The Bayesian method used here is a more advanced but well-documented technique: the Normal-Inverse-Wishart posterior predictive approach, long standard in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion 1986). What this repository contributes is a **from-scratch implementation and derivation** of it, sitting behind the same interface as the other three methods. It treats the model parameters as uncertain and integrates over that uncertainty when simulating outcomes, which makes one concrete promise: it should be **more conservative when less data is available**, and converge to the other methods as data accumulates.
 
 This isn't just a theoretical claim — [`walkthrough.ipynb`](notebooks/walkthrough.ipynb) tests it directly, recomputing all four VaR estimates using between 1 and 12 months of history. The result confirms the promise: with a single month of data, the Bayesian estimate is unambiguously the most conservative of the four; as the sample grows, the gap narrows into noise, exactly as the underlying theory predicts (see [`MATH.md`](MATH.md) for the full derivation).
 

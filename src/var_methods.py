@@ -235,9 +235,13 @@ class FinancialContext:
         """
         Compute the Value at Risk of a portfolio under a Bayesian model.
 
-        Unlike montecarlo_VaR, this method also accounts for parameter
-        uncertainty. This produces a wider (more
-        conservative) VaR estimate when historical data is scarce.
+        This is a more advanced but well-documented technique: the
+        Normal-Inverse-Wishart posterior predictive method, long standard
+        in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion
+        1986), implemented here from scratch behind the same interface as
+        the other VaR methods. Unlike montecarlo_VaR, it also accounts for
+        parameter uncertainty, producing a wider (more conservative) VaR
+        estimate when historical data is scarce.
 
         Parameters
         ----------

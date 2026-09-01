@@ -129,7 +129,7 @@ where $q_\alpha(\cdot)$ denotes the empirical $\alpha$-quantile of the simulated
 
 The previous methods do not depend only on the model, but also on point estimates of its parameters ($\mu$, $\Sigma$). This means these methods are unable to account for the uncertainty that comes from the amount of data available — they produce a single estimate, regardless of how much data supports it.
 
-To address this, we use Bayesian inference tools to make the simulation aware of the amount of data available, by treating $\mu$ and $\Sigma$ themselves as random variables with their own distribution, rather than fixed point estimates.
+To address this, we use a more advanced but well-established technique — the Normal-Inverse-Wishart posterior predictive method, long standard in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion 1986). It makes the simulation aware of the amount of data available by treating $\mu$ and $\Sigma$ themselves as random variables with their own distribution, rather than fixed point estimates. The derivation and implementation below are worked out from scratch, but the method itself is not new.
 
 **Model.** We place a Normal-Inverse-Wishart (NIW) prior over $(\mu,\Sigma)$, the standard conjugate prior for a multivariate normal with unknown mean and covariance:
 
@@ -161,7 +161,7 @@ $$VaR_\alpha^{bayes} = -q_\alpha\left(\{V^{(n)}(t)-1\}_{n=1}^N\right) \tag{B.7}$
 
 
 ### Implementation note
-Note: while historical, parametric, and Monte Carlo VaR are standard industry methods, the Bayesian approach presented in this section is also classical — it is the standard Normal-Inverse-Wishart posterior predictive method, long used in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion 1986). What this project contributes is a from-scratch implementation and derivation, aimed at explicitly quantifying parameter uncertainty — something the other three methods cannot do.
+Note: historical, parametric, and Monte Carlo VaR are standard industry methods, and the Bayesian approach in this section is equally classical — the standard Normal-Inverse-Wishart posterior predictive method, long used in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion 1986). It is simply a step more advanced than the other three: the contribution here is a from-scratch implementation and derivation, exposed behind the same interface, aimed at explicitly quantifying parameter uncertainty — something the other three methods cannot do.
 
 ## Finding the best portfolio — The Markowitz problem
 
