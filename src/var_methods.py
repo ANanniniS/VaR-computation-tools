@@ -1,9 +1,29 @@
+"""
+Portfolio Value at Risk and Markowitz optimization from first principles.
+
+Everything is exposed through the `FinancialContext` class, which loads a
+price history once and then answers VaR and portfolio questions about it
+with four methods: historical, parametric, Monte Carlo and Bayesian. The
+full mathematical derivation of every formula lives in `MATH.md`, and the
+`# Eq. X.Y` comments in the code point back to it.
+"""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm, invwishart
 
 class FinancialContext:
+    """
+    Financial context shared by all VaR and portfolio methods.
+
+    Holds a price history and the model parameters estimated from it
+    (log returns, Gaussian moments, lognormal price moments and the
+    Normal-Inverse-Wishart posterior). Parameters are computed lazily on
+    first use and cached, so building one context and calling several
+    methods on it does not repeat work.
+    """
+
     def __init__(
         self,
         data_location: str | None = None,

@@ -1,32 +1,45 @@
+"""
+Download adjusted closing prices used as input by the rest of the project.
+"""
+
 import yfinance as yf
 
-# Tickers del portafolio y rango de fechas a descargar.
-# Empresas reconocibles para alguien de Rosario, Argentina, todas en USD (ADRs):
-# YPF (petrolera), GGAL y BMA (bancos), PAM (energia), AGRO (agro zona nucleo),
-# BIOX (Bioceres, biotecnologia agricola fundada en Rosario)
+# Portfolio tickers and the date range to download.
+# Companies recognizable to someone from Rosario, Argentina, all priced in
+# USD (ADRs): YPF (oil), GGAL and BMA (banks), PAM (energy), AGRO (agriculture,
+# core region), BIOX (Bioceres, agricultural biotech founded in Rosario).
 TICKERS = ["YPF", "GGAL", "BMA", "PAM", "AGRO", "BIOX"]
 
-# Fechas fijas (no relativas a "hoy") para que los resultados sean
-# reproducibles sin importar cuándo se corra el script.
+# Fixed dates (not relative to "today") so results are reproducible
+# regardless of when the script is run.
 START = "2020-08-01"
 END = "2025-08-01"
 
 
 def download_prices(tickers=TICKERS, start=START, end=END):
     """
-    Descarga precios de cierre ajustado para cada ticker entre start y end.
+    Download the adjusted closing price of each ticker between two dates.
+
+    Rows with any missing price are dropped, so every returned row has a
+    price for every ticker.
 
     Parameters
     ----------
-    tickers : list of str
-        Tickers a descargar.
-    start : str
-        Fecha de inicio, formato 'YYYY-MM-DD' (inclusive).
-    end : str
-        Fecha de fin, formato 'YYYY-MM-DD' (exclusive, según yfinance).
+    tickers : list of str, default=TICKERS
+        Tickers to download.
+    start : str, default=START
+        Start date, format 'YYYY-MM-DD' (inclusive).
+    end : str, default=END
+        End date, format 'YYYY-MM-DD' (exclusive, as per yfinance).
+
+    Returns
+    -------
+    pd.DataFrame
+        Adjusted closing prices indexed by date, with one column per
+        ticker.
     """
     data = yf.download(tickers, start=start, end=end, auto_adjust=True)["Close"]
-    return data.dropna()  # saca filas con datos faltantes
+    return data.dropna()  # drop rows with missing data
 
 
 if __name__ == "__main__":

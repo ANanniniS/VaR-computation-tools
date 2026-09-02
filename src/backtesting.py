@@ -1,3 +1,12 @@
+"""
+Rolling-window backtesting of the VaR methods in `var_methods`.
+
+Re-estimates the Value at Risk of a fixed portfolio on a rolling window of
+historical prices, steps forward one day at a time, and checks how often
+the realized loss exceeded the predicted VaR. Two exact hypothesis tests
+then judge whether each method is well calibrated.
+"""
+
 import pandas as pd
 import numpy as np
 from var_methods import FinancialContext
@@ -6,6 +15,59 @@ from scipy.stats import fisher_exact
 from tqdm import tqdm
 
 def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,seed = None,window=100):
+    """
+    Backtest the four VaR methods on a rolling historical window.
+
+    For each day `i` from `window` onwards, a `FinancialContext` is built
+    from the previous `window` prices and used to estimate the portfolio
+    VaR with all four methods (historical, parametric, Monte Carlo and
+    Bayesian). The estimate is then compared against the realized P&L over
+    the next `horizon` days to flag VaR breaches, and the sequence of
+    breaches is assessed with two exact tests:
+
+    - an exact binomial test on the number of breaches (in the spirit of
+      Kupiec's proportion-of-failures test), checking that the breach rate
+      matches `alpha`;
+    - Fisher's exact test on the 2x2 table of consecutive breach/no-breach
+      transitions (in the spirit of Christoffersen's independence test),
+      checking that breaches do not cluster in time. Only computed when
+      `horizon == 1`.
+
+    Parameters
+    ----------
+    datos : pd.DataFrame
+        Price data with a 'Date' first column followed by one adjusted
+        closing price column per ticker.
+    portfolio : array-like
+        Dollar amount invested in each ticker (same order as the price
+        columns of `datos`). Normalized internally to sum to 1.
+    horizon : int, default=1
+        Number of days ahead over which each VaR is computed and the
+        realized loss is measured.
+    alpha : float, default=0.05
+        Significance level of the VaR (e.g. 0.05 for 95% confidence).
+    N : int, default=20000
+        Number of simulations used by the Monte Carlo and Bayesian methods.
+    seed : int, optional
+        Seed for the random number generator, for reproducibility. A
+        distinct child seed is derived from it for each rolling window.
+    window : int, default=100
+        Number of past days used to estimate the model at each step.
+
+    Returns
+    -------
+    pnl : np.ndarray, shape (num_days - window - horizon,)
+        Realized portfolio P&L over `horizon` days, as a fraction of
+        capital, for each rolling step.
+    VaR_estimations : np.ndarray, shape (4, num_days - window - horizon)
+        Estimated VaR at each step. Rows are ordered
+        [historical, parametric, Monte Carlo, Bayesian].
+    binom_test_pvalues : np.ndarray, shape (4,)
+        Exact binomial test p-value for each method, in the same row order.
+    fisher_test_pvalues : np.ndarray or None, shape (4,)
+        Fisher's exact test p-value for each method, in the same row order,
+        or None when `horizon != 1`.
+    """
     num_data = datos.shape[0]
     VaR_estimations = np.zeros((4,num_data-window-horizon))
     pnl = np.zeros(num_data-window-horizon)
@@ -25,7 +87,7 @@ def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,seed = None,
         pnl[i-window] = np.sum(data[i+horizon]*portfolio/data[i]) - 1
 
 
-    #test de kupiec
+    # Kupiec-style test: exact binomial test on the number of VaR breaches
     exceptions = np.zeros(VaR_estimations.shape,dtype=bool)
     binom_test_pvalues = np.zeros(4)
     n = len(pnl)
@@ -35,7 +97,8 @@ def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,seed = None,
         binom_test_pvalues[m] = binomtest(k,n,p=alpha).pvalue
 
 
-    #test de christoffer
+    # Christoffersen-style test: Fisher's exact test on the 2x2 table of
+    # consecutive breach/no-breach transitions
 
     if horizon == 1:
         fisher_test_pvalues = np.zeros(4)
