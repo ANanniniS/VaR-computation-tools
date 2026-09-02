@@ -160,6 +160,31 @@ $$VaR_\alpha^{bayes} = -q_\alpha\left(\{V^{(n)}(t)-1\}_{n=1}^N\right) \tag{B.7}$
 **Key property**: because $\kappa$ scales with the amount of historical data $T$, this method automatically widens the simulated distribution of outcomes — and therefore increases the estimated VaR — when little data is available, and converges to the plain Monte Carlo estimate (Eq. M.1–M.3) as $T\to\infty$, since the posterior on $(\mu,\Sigma)$ becomes arbitrarily tight. This makes the Bayesian VaR strictly more conservative than the Monte Carlo VaR under the same model, with the gap between them serving as a direct, interpretable measure of parameter uncertainty — something none of the previous methods can quantify.
 
 
+## Backtesting
+
+Agreement between the four methods is weak evidence, since three of them share the same lognormal model and would be wrong together. To validate them we compare each estimate against what actually happened: using a rolling window, we compute $VaR_\alpha(t)$ with the observations available up to $t$ and record whether the loss realised between $t$ and $t+1$ exceeded it:
+
+$$I_t = \mathbb{1}\left\{PnL(t+1,\mathbf{w}) < -VaR_\alpha(t)\right\} \tag{T.1}$$
+
+If the model is correct, $I_t$ is an iid Bernoulli($\alpha$) sequence. That statement contains two claims, and each is tested separately.
+
+**Correct rate.** With $n$ forecasts and $x = \sum_t I_t$ exceptions, $X\sim\text{Binomial}(n,\alpha)$ under the null, and we test $H_0: p = \alpha$ two-sided — too few exceptions is also a failure, since it means the VaR is inflated. The null distribution is known exactly, so we use the **exact binomial test** rather than any large-sample approximation.
+
+**Independence.** The count $x$ is unchanged by permuting the sequence, so clustering must be tested separately. We model $I_t$ as a two-state Markov chain, where state $1$ is an exception, with transition matrix
+
+$$\Pi = \begin{pmatrix} 1-\pi_{01} & \pi_{01} \\ 1-\pi_{11} & \pi_{11}\end{pmatrix}, \qquad \pi_{ij} = P(I_t = j \mid I_{t-1} = i) \tag{T.2}$$
+
+Independence means that yesterday carries no information about today, i.e. that the two rows of $\Pi$ are identical. The test therefore reduces to comparing two entries of the matrix:
+
+$$H_0: \pi_{01} = \pi_{11} \tag{T.3}$$
+
+Estimating both from the observed transition counts gives a $2\times2$ contingency table, and Eq. T.3 is its standard hypothesis of row homogeneity. Conditioning on the margins, the null distribution is hypergeometric and again exactly known, so we use **Fisher's exact test**.
+
+**Relation to the standard tests.** The risk literature normally uses Kupiec's proportion-of-failures test for the rate and Christoffersen's test for independence. These are the same two hypotheses, computed as likelihood ratios and referred to a $\chi^2$ distribution — that is, large-sample approximations to the exact tests used here. We prefer the exact versions because our counts are small: with $n\approx 1150$ at $\alpha = 0.05$ the expected count in the critical cell of the contingency table is below $4$, and the $\chi^2$ approximation rejects correctly specified models about $7\%$ of the time at a nominal $5\%$ level.
+
+Both tests require a one-day horizon. For longer horizons the realised returns overlap, so a single extreme day produces several consecutive exceptions and the sequence is dependent by construction.
+
+
 ### Implementation note
 Note: historical, parametric, and Monte Carlo VaR are standard industry methods, and the Bayesian approach in this section is equally classical — the standard Normal-Inverse-Wishart posterior predictive method, long used in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion 1986). It is simply a step more advanced than the other three: the contribution here is a from-scratch implementation and derivation, exposed behind the same interface, aimed at explicitly quantifying parameter uncertainty — something the other three methods cannot do.
 

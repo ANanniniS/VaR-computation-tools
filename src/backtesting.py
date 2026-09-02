@@ -12,13 +12,15 @@ def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,seed = None,
     data = datos.values[:,1:]
     portfolio = portfolio/np.sum(portfolio)
 
-    rng = np.random.default_rng(seed)
+    seed_seq = np.random.SeedSequence(seed)
+    window_seeds = seed_seq.generate_state(num_data - horizon - window)
     for i in tqdm(range(window, num_data - horizon), desc="Rolling backtest"):
         partial_context = FinancialContext(data = datos[i+1-window:i+1])
+        window_seed = int(window_seeds[i-window])
         VaR_estimations[0,i-window] = partial_context.historical_VaR(portfolio,horizon,alpha,verbose=False,plot=False)
         VaR_estimations[1,i-window] = partial_context.parametric_VaR(portfolio,horizon,alpha,verbose=False,plot=False)
-        VaR_estimations[2,i-window] = partial_context.montecarlo_VaR(portfolio,horizon,alpha,N,rng,verbose=False,plot=False)
-        VaR_estimations[3,i-window] = partial_context.bayesian_VaR(portfolio,horizon,alpha,N,rng,verbose=False,plot=False)
+        VaR_estimations[2,i-window] = partial_context.montecarlo_VaR(portfolio,horizon,alpha,N,window_seed,verbose=False,plot=False)
+        VaR_estimations[3,i-window] = partial_context.bayesian_VaR(portfolio,horizon,alpha,N,window_seed,verbose=False,plot=False)
 
         pnl[i-window] = np.sum(data[i+horizon]*portfolio/data[i]) - 1
 
