@@ -168,6 +168,7 @@ class FinancialContext:
             horizon: int = 1,
             alpha: float = 0.05,
             N: int = 100000,
+            rng: np.random.Generator | None = None,
             verbose : bool = True,
             plot : bool = True
             ):
@@ -189,6 +190,8 @@ class FinancialContext:
             Significance level (e.g. 0.05 for 95% confidence).
         N : int, default=100000
             Number of Monte Carlo simulations to run.
+        rng: np.randomGenerator, optional
+            Explicit random generator (e.g. np.random.default_rng(seed))
         verbose : bool, default=True
             If True, print the resulting VaR as a percentage.
         plot : bool, default=True
@@ -200,13 +203,16 @@ class FinancialContext:
         float
             Simulated VaR, expressed as a positive fraction of capital.
         """
-        self._validate_montecarlo_VaR(portfolio,horizon,alpha,N,verbose,plot)
+        self._validate_montecarlo_VaR(portfolio,horizon,alpha,N,rng,verbose,plot)
 
         w= portfolio/sum(portfolio)
 
         if not self._gaussian_parameters_computed:
             self._gaussian_parameters()
-        simulation_result = np.exp(np.random.multivariate_normal(horizon*self.mu,horizon*self.volatility,size=N))@w-1 # Eq. M.1, M.2
+
+        draw = rng.multivariate_normal if rng is not None else np.random.multivariate_normal
+
+        simulation_result = np.exp(draw(horizon*self.mu,horizon*self.volatility,size=N))@w-1 # Eq. M.1, M.2
         VaR_mont = -np.quantile(simulation_result,q=alpha) # Eq. M.3
 
         if verbose:
@@ -227,6 +233,7 @@ class FinancialContext:
             horizon: int = 1,
             alpha: float = 0.05,
             N: int = 100000,
+            rng: np.random.Generator | None = None,
             verbose : bool = True,
             plot : bool = True
         ):
@@ -251,6 +258,8 @@ class FinancialContext:
             Significance level (e.g. 0.05 for 95% confidence).
         N : int, default=100000
             Number of posterior samples to draw.
+        rng: np.randomGenerator, optional
+            Explicit random generator (e.g. np.random.default_rng(seed))
         verbose : bool, default=True
             If True, print the resulting VaR as a percentage.
         plot : bool, default=True
@@ -262,7 +271,7 @@ class FinancialContext:
         float
             Bayesian VaR, expressed as a positive fraction of capital.
         """
-        self._validate_bayesian_VaR(portfolio,horizon,alpha,N,verbose,plot)
+        self._validate_bayesian_VaR(portfolio,horizon,alpha,N,rng,verbose,plot)
 
         w = portfolio/sum(portfolio)
 
@@ -272,11 +281,11 @@ class FinancialContext:
             self._gaussian_parameters()
 
 
-
-        sigmas = invwishart.rvs(df=self.nu, scale=self.psi, size=N) # Eq. B.3
+        sigmas = invwishart.rvs(df=self.nu, scale=self.psi, size=N, random_state=rng) # Eq. B.3
         L_base = np.linalg.cholesky(sigmas)
 
-        zs = np.random.standard_normal((N,self.N_tickers,2))
+
+        zs = rng.standard_normal((N,self.N_tickers,2)) if rng is not None else np.random.standard_normal((N,self.N_tickers,2))
 
         mus = self.mu + np.einsum('nij,nj->ni',L_base/np.sqrt(self.kappa),zs[:,:,0]) # Eq. B.4
 
@@ -487,6 +496,11 @@ class FinancialContext:
         if expected_return < 0:
             raise ValueError(f"Expected return must not be a negative number. It is {expected_return}")
 
+    def _validate_rng(self, rng):
+        """Validate the rng argument (explicit random generator, for reproducibility)."""
+        if rng is not None and not isinstance(rng, np.random.Generator):
+            raise ValueError(f"rng must be a np.random.Generator (or None), got {type(rng)}")
+
     def _validate_historical_VaR(self, portfolio, horizon, alpha, verbose, plot):
         """Validate the arguments of historical_VaR."""
         self._validate_portfolio(portfolio)
@@ -503,21 +517,23 @@ class FinancialContext:
         self._validate_bool_flag(verbose, "verbose")
         self._validate_bool_flag(plot, "plot")
 
-    def _validate_montecarlo_VaR(self, portfolio, horizon, alpha, N, verbose, plot):
+    def _validate_montecarlo_VaR(self, portfolio, horizon, alpha, N, rng, verbose, plot):
         """Validate the arguments of montecarlo_VaR."""
         self._validate_portfolio(portfolio)
         self._validate_horizon(horizon)
         self._validate_alpha(alpha)
         self._validate_N(N)
+        self._validate_rng(rng)
         self._validate_bool_flag(verbose, "verbose")
         self._validate_bool_flag(plot, "plot")
 
-    def _validate_bayesian_VaR(self, portfolio, horizon, alpha, N, verbose, plot):
+    def _validate_bayesian_VaR(self, portfolio, horizon, alpha, N, rng, verbose, plot):
         """Validate the arguments of bayesian_VaR."""
         self._validate_portfolio(portfolio)
         self._validate_horizon(horizon)
         self._validate_alpha(alpha)
         self._validate_N(N)
+        self._validate_rng(rng)
         self._validate_bool_flag(verbose, "verbose")
         self._validate_bool_flag(plot, "plot")
 

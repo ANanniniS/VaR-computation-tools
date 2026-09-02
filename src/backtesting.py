@@ -3,20 +3,22 @@ import numpy as np
 from var_methods import FinancialContext
 from scipy.stats import binomtest
 from scipy.stats import fisher_exact
+from tqdm import tqdm
 
-def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,window=100):
+def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,seed = None,window=100):
     num_data = datos.shape[0]
     VaR_estimations = np.zeros((4,num_data-window-horizon))
     pnl = np.zeros(num_data-window-horizon)
     data = datos.values[:,1:]
     portfolio = portfolio/np.sum(portfolio)
 
-    for i in range(window,num_data-horizon):
+    rng = np.random.default_rng(seed)
+    for i in tqdm(range(window, num_data - horizon), desc="Rolling backtest"):
         partial_context = FinancialContext(data = datos[i+1-window:i+1])
         VaR_estimations[0,i-window] = partial_context.historical_VaR(portfolio,horizon,alpha,verbose=False,plot=False)
         VaR_estimations[1,i-window] = partial_context.parametric_VaR(portfolio,horizon,alpha,verbose=False,plot=False)
-        VaR_estimations[2,i-window] = partial_context.montecarlo_VaR(portfolio,horizon,alpha,N,verbose=False,plot=False)
-        VaR_estimations[3,i-window] = partial_context.bayesian_VaR(portfolio,horizon,alpha,N,verbose=False,plot=False)
+        VaR_estimations[2,i-window] = partial_context.montecarlo_VaR(portfolio,horizon,alpha,N,rng,verbose=False,plot=False)
+        VaR_estimations[3,i-window] = partial_context.bayesian_VaR(portfolio,horizon,alpha,N,rng,verbose=False,plot=False)
 
         pnl[i-window] = np.sum(data[i+horizon]*portfolio/data[i]) - 1
 
@@ -54,7 +56,3 @@ def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,window=100):
         fisher_test_pvalues = None
 
     return pnl,VaR_estimations,binom_test_pvalues,fisher_test_pvalues
-    
-
-def kupiec_test(VaR_estimation,pnl,sign_level):
-    x = -pnl > VaR_estimation
