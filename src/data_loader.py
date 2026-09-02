@@ -1,15 +1,35 @@
 import yfinance as yf
 
-# portfolio tickers and historical period
+# Tickers del portafolio y rango de fechas a descargar.
+# Empresas reconocibles para alguien de Rosario, Argentina, todas en USD (ADRs):
+# YPF (petrolera), GGAL y BMA (bancos), PAM (energia), AGRO (agro zona nucleo),
+# BIOX (Bioceres, biotecnologia agricola fundada en Rosario)
 TICKERS = ["YPF", "GGAL", "BMA", "PAM", "AGRO", "BIOX"]
-PERIOD = "1y"
 
-def download_prices(tickers = TICKERS,period = PERIOD):
-    """Download the adjusted closing prices for each ticker."""
-    data = yf.download(tickers=tickers,period=period,auto_adjust=True)["Close"]
-    return data.dropna()
+# Fechas fijas (no relativas a "hoy") para que los resultados sean
+# reproducibles sin importar cuándo se corra el script.
+START = "2020-08-01"
+END = "2025-08-01"
+
+
+def download_prices(tickers=TICKERS, start=START, end=END):
+    """
+    Descarga precios de cierre ajustado para cada ticker entre start y end.
+
+    Parameters
+    ----------
+    tickers : list of str
+        Tickers a descargar.
+    start : str
+        Fecha de inicio, formato 'YYYY-MM-DD' (inclusive).
+    end : str
+        Fecha de fin, formato 'YYYY-MM-DD' (exclusive, según yfinance).
+    """
+    data = yf.download(tickers, start=start, end=end, auto_adjust=True)["Close"]
+    return data.dropna()  # saca filas con datos faltantes
 
 
 if __name__ == "__main__":
-    data = download_prices()
-    data.to_csv("data/precios.csv")
+    prices = download_prices()
+    prices.to_csv("data/precios.csv")
+    print(prices.tail())
