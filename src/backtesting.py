@@ -5,6 +5,9 @@ Re-estimates the Value at Risk of a fixed portfolio on a rolling window of
 historical prices, steps forward one day at a time, and checks how often
 the realized loss exceeded the predicted VaR. Two exact hypothesis tests
 then judge whether each method is well calibrated.
+
+The maths is derived in the "Backtesting" section of `MATH.md`; the
+`# Eq. T.x` comments in the code point back to its numbered equations.
 """
 
 import pandas as pd
@@ -92,9 +95,9 @@ def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,seed = None,
     binom_test_pvalues = np.zeros(4)
     n = len(pnl)
     for m in range(4):
-        exceptions[m,:] = -pnl > VaR_estimations[m,:]
+        exceptions[m,:] = -pnl > VaR_estimations[m,:] # Eq. T.1
         k = exceptions[m,:].sum()
-        binom_test_pvalues[m] = binomtest(k,n,p=alpha).pvalue
+        binom_test_pvalues[m] = binomtest(k,n,p=alpha).pvalue # Eq. T.1 null: X ~ Binomial(n, alpha)
 
 
     # Christoffersen-style test: Fisher's exact test on the 2x2 table of
@@ -103,6 +106,7 @@ def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,seed = None,
     if horizon == 1:
         fisher_test_pvalues = np.zeros(4)
         for m in range(4):
+            # transition counts n_ij of the two-state Markov chain (Eq. T.2)
             n00 = n01 = n10 = n11 = 0
             for i in range(n-1):
                 if exceptions[m,i]:
@@ -115,8 +119,8 @@ def rolling_back_tests(datos,portfolio,horizon=1,alpha=0.05,N=20000,seed = None,
                         n01+=1
                     else:
                         n00+=1
-            table = np.array([[n00,n01],[n10,n11]])
-            fisher_test_pvalues[m] = fisher_exact(table)[1]
+            table = np.array([[n00,n01],[n10,n11]]) # 2x2 contingency table for Eq. T.3
+            fisher_test_pvalues[m] = fisher_exact(table)[1] # Eq. T.3 null: pi_01 = pi_11
     else:
         fisher_test_pvalues = None
 
