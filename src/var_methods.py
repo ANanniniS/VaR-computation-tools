@@ -195,8 +195,13 @@ class FinancialContext:
 
         Simulates N possible portfolio outcomes under the same lognormal
         model used by parametric_VaR, and estimates VaR as the empirical
-        quantile of the simulated results. Serves as a validation of the
-        parametric method: both should converge to the same value.
+        quantile of the simulated results — without approximating the
+        portfolio's own P&L distribution as normal, unlike parametric_VaR.
+        Serves as a check on that normal approximation: because a weighted
+        sum of correlated lognormals is not itself normal, the two methods
+        generally converge to *different* values as N grows, and the size
+        of that gap is a measure of how good the normal approximation is
+        for this particular portfolio.
 
         Parameters
         ----------
