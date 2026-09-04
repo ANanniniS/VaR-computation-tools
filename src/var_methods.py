@@ -115,7 +115,6 @@ class FinancialContext:
             for patch, left_edge in zip(patches, bins):
                 if left_edge < threshold:
                     patch.set_facecolor("red")
-            plt.show()
         return VaR_hist
 
     def parametric_VaR(
@@ -178,7 +177,6 @@ class FinancialContext:
             plt.fill_between(x, y, where=(x >= -VaR_para), color="steelblue")
             plt.axvline(-VaR_para, color="red", linestyle="--", label=f"VaR ({alpha*100:.0f}%)")
             plt.legend()
-            plt.show()
 
         return VaR_para
 
@@ -244,7 +242,6 @@ class FinancialContext:
             for patch, left_edge in zip(patches, bins):
                 if left_edge < threshold:
                     patch.set_facecolor("red")
-            plt.show()
         return VaR_mont
 
     def bayesian_VaR(
@@ -323,7 +320,6 @@ class FinancialContext:
             for patch, left_edge in zip(patches, bins):
                 if left_edge < threshold:
                     patch.set_facecolor("red")
-            plt.show()
 
         return VaR_bayes
 
