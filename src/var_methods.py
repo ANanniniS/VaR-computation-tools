@@ -483,8 +483,6 @@ class FinancialContext:
         """Validate the portfolio argument."""
         if portfolio.shape[0] != self.N_tickers:
             raise ValueError(f"The portfolio must have {self.N_tickers} elements, got {portfolio.shape[0]}")
-        if np.any(portfolio < 0):
-            raise ValueError("portfolio cannot have negative values")
 
     def _validate_alpha(self,alpha):
         """Validate the alpha argument."""
