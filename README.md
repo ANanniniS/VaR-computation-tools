@@ -15,6 +15,7 @@ But *how* you estimate VaR matters. Read it straight from historical data, and y
 - **Rolling-window backtesting** — re-estimates each method day by day over history and judges its calibration with two *exact* hypothesis tests (an exact binomial test in the spirit of Kupiec's proportion-of-failures test, and Fisher's exact test in the spirit of Christoffersen's independence test), rather than the usual large-sample chi-squared approximations.
 - **[`MATH.md`](MATH.md)** — every formula used, derived from first assumptions to final implementation, with numbered equations cited directly from the code.
 - **[`notebooks/walkthrough.ipynb`](notebooks/walkthrough.ipynb)** — the same toolkit run end-to-end on real market data, with the key empirical findings interpreted in context.
+- **[`notebooks/bayesian_experiment.ipynb`](notebooks/bayesian_experiment.ipynb)** — a focused follow-up sweeping the estimation window from 1 month to 5 years, to measure directly how fast the Bayesian method's extra conservatism decays as more data becomes available.
 
 **How the four VaR methods compare:**
 
@@ -56,7 +57,7 @@ Historical, parametric, and Monte Carlo VaR are the standard toolkit — but all
 
 The Bayesian method used here is a more advanced but well-documented technique: the Normal-Inverse-Wishart posterior predictive approach, long standard in Bayesian portfolio analysis (e.g. Klein & Bawa 1976, Jorion 1986). What this repository contributes is a **from-scratch implementation and derivation** of it, sitting behind the same interface as the other three methods. It treats the model parameters as uncertain and integrates over that uncertainty when simulating outcomes, which makes one concrete promise: it should be **more conservative when less data is available**, and converge to the other methods as data accumulates.
 
-This isn't just a theoretical claim — [`walkthrough.ipynb`](notebooks/walkthrough.ipynb) tests it directly, recomputing all four VaR estimates using between 1 and 12 months of history. The result confirms the promise: with a single month of data, the Bayesian estimate is unambiguously the most conservative of the four; as the sample grows, the gap narrows into noise, exactly as the underlying theory predicts (see [`MATH.md`](MATH.md) for the full derivation).
+This isn't just a theoretical claim — [`bayesian_experiment.ipynb`](notebooks/bayesian_experiment.ipynb) tests it directly, recomputing all four VaR estimates on estimation windows ranging from 1 month to 5 years of history. The result confirms the promise: with a single month of data, the Bayesian estimate sits about 0.8 percentage points above the parametric one — unambiguously the most conservative of the four — and that gap decays to noise level (a few basis points) by 6-9 months, exactly as the underlying theory predicts (see [`MATH.md`](MATH.md) for the full derivation).
 
 ## Technical highlights
 
@@ -66,12 +67,13 @@ This isn't just a theoretical claim — [`walkthrough.ipynb`](notebooks/walkthro
 - **Parameter caching.** Quantities that are expensive to compute but constant across calls (e.g. the fitted mean and covariance of returns) are computed once, cached on the instance, and reused across every method that needs them — so calling `historical_VaR` and then `parametric_VaR` doesn't redo the same underlying estimation twice.
 - **No caching across simulations — on purpose.** Unlike the parameter cache above, results are deliberately **not** cached or reused *between separate Monte Carlo or Bayesian calls*: each call draws an entirely fresh set of random samples. This was a conscious trade-off — reusing simulations across calls would be faster, but would introduce statistical dependence between measurements that are meant to be independent, which matters if you're comparing or averaging VaR estimates across calls.
 
-## Documentation: `MATH.md` and the walkthrough notebook
+## Documentation: `MATH.md` and the notebooks
 
-Two documents complement the code, each answering a different question:
+Three documents complement the code, each answering a different question:
 
 - **[`MATH.md`](MATH.md)** answers *why*: it lays out the price model, derives the mean and covariance behind each method from first assumptions, and numbers every equation so the code can cite it directly (e.g. `# Eq. B.3`).
-- **[`notebooks/walkthrough.ipynb`](notebooks/walkthrough.ipynb)** answers *what happens in practice*: it runs the full toolkit on a real portfolio, compares the four VaR methods, runs the data-sensitivity experiment described above, backtests every method over 1 and 5 years of history with the exact hypothesis tests, and solves for the Markowitz-optimal portfolio — with every result interpreted, not just printed.
+- **[`notebooks/walkthrough.ipynb`](notebooks/walkthrough.ipynb)** answers *what happens in practice*: it runs the full toolkit on a real portfolio, compares the four VaR methods, backtests every method over 1 and 5 years of history with the exact hypothesis tests, and solves for the Markowitz-optimal portfolio — with every result interpreted, not just printed.
+- **[`notebooks/bayesian_experiment.ipynb`](notebooks/bayesian_experiment.ipynb)** answers *how fast*: it isolates the one claim the walkthrough only checks at two data points (1 year vs. 5 years) and sweeps it properly across eleven window lengths, from 1 month to 5 years, to show exactly how the Bayesian method's conservatism decays with sample size.
 
 ## Installation & quickstart
 
@@ -89,6 +91,8 @@ To reproduce the analysis end-to-end, open the walkthrough notebook:
 uv run jupyter lab notebooks/walkthrough.ipynb
 ```
 
+For the window-length sweep behind the Bayesian conservatism claim, open [`notebooks/bayesian_experiment.ipynb`](notebooks/bayesian_experiment.ipynb) the same way (it reuses the 5-year price data downloaded by the walkthrough notebook, at `data/precios_5y.csv`).
+
 ### Project structure
 
 ```
@@ -105,7 +109,8 @@ var-finance1/
 │   ├── var_methods.py
 │   └── backtesting.py
 └── notebooks/
-    └── walkthrough.ipynb
+    ├── walkthrough.ipynb
+    └── bayesian_experiment.ipynb
 ```
 
 ## License
